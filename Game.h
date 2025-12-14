@@ -64,11 +64,11 @@ private:
     void DrawMenu();
     void DrawPlaying();
     void DrawGameOver();
-    void DrawEnterName();
     void DrawBackground();
     void UpdateEnterName();
     void DrawEnterName();
-    // Highscore file IO
+
+    // Highscore
     void LoadHighScore();
     void SaveHighScore();
 };

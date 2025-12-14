@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 #include <cctype>
+#include <cmath>
 
 Game::Game() {
     naveTex = LoadTexture("cohete.png");
@@ -22,7 +23,7 @@ Game::Game() {
     namePos = 0;
     backgroundTex = LoadTexture("fondo.png");
     bgOffset = 0.0f;
-    bgSpeed = 80.0f; // pixels per second
+    bgSpeed = 25.0f; // pixels per second (slower)
     LoadHighScore();
     Reset();
 }
@@ -63,12 +64,12 @@ void Game::Reset() {
 }
 
 void Game::Update() {
-    // Update background offset regardless of state (smooth scrolling)
+    // Actualizar offset fondo
     if (backgroundTex.width > 0) {
         float destScale = (float)GetScreenWidth() / (float)backgroundTex.width;
         int destH = (int)(backgroundTex.height * destScale);
-        bgOffset += bgSpeed * GetFrameTime();
-        if (bgOffset >= destH) bgOffset -= destH;
+        bgOffset -= bgSpeed * GetFrameTime();
+        if (bgOffset <= -destH) bgOffset += destH;
     }
     switch (state) {
         case GameState::MENU:     UpdateMenu();     break;
@@ -126,6 +127,7 @@ void Game::UpdateEnterName() {
 }
 
 void Game::DrawEnterName() {
+    DrawBackground();
     DrawText("NEW HIGHSCORE!", 200, 160, 30, GOLD);
     DrawText(TextFormat("SCORE: %d", pendingHighscore), 260, 200, 20, WHITE);
     DrawText("ENTER NAME (3 LETRAS):", 180, 240, 20, WHITE);
@@ -254,12 +256,14 @@ void Game::UpdateGameOver() {
 }
 
 void Game::DrawMenu() {
+    DrawBackground();
     DrawText("FULL GUNS MINERY", 200, 200, 40, WHITE);
     DrawText("ENTER PARA JUGAR", 240, 260, 20, GRAY);
     DrawText(TextFormat("HIGHSCORE: %s %d", highscoreName.c_str(), highscore), 240, 300, 20, GRAY);
 }
 
 void Game::DrawPlaying() {
+    DrawBackground();
     nave->Draw();
 
     for (auto& e : enemigos)
@@ -303,6 +307,7 @@ void Game::DrawPlaying() {
 }
 
 void Game::DrawGameOver() {
+    DrawBackground();
     DrawText("GAME OVER", 260, 220, 40, RED);
     DrawText("ENTER PARA REINICIAR", 230, 280, 20, GRAY);
     DrawText(TextFormat("HIGHSCORE: %s %d", highscoreName.c_str(), highscore), 260, 320, 20, WHITE);
@@ -339,5 +344,30 @@ void Game::SaveHighScore() {
             namebuf[i] = toupper((unsigned char)highscoreName[i]);
         fprintf(f, "%d %s\n", highscore, namebuf);
         fclose(f);
+    }
+}
+
+void Game::DrawBackground() {
+    if (backgroundTex.width <= 0) {
+        ClearBackground(BLACK);
+        return;
+    }
+
+    float scale = (float)GetScreenWidth() / (float)backgroundTex.width;
+    int destH = (int)(backgroundTex.height * scale);
+
+    // Normaliza el offset a [0,destH) para que el primer mosaico empiece en o por encima de la parte superior
+    float offset = std::fmod(bgOffset, (float)destH);
+    if (offset < 0) offset += destH;
+    float y = -offset;
+
+    Rectangle src = { 0.0f, 0.0f, (float)backgroundTex.width, (float)backgroundTex.height };
+    Vector2 origin = { 0.0f, 0.0f };
+
+    // Dibuja tantas veces como sea necesario para cubrir la pantalla
+    while (y < (float)GetScreenHeight()) {
+        Rectangle dest = { 0.0f, y, (float)GetScreenWidth(), (float)destH };
+        DrawTexturePro(backgroundTex, src, dest, origin, 0.0f, WHITE);
+        y += destH;
     }
 }
