@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 class Game {
 public:
@@ -42,6 +43,12 @@ private:
     int nextExtraLifeScore;
     int nextEnemyShipScore;
     int highscore;
+    std::string highscoreName;
+
+    // Nombre para nuevo highscore
+    int pendingHighscore;
+    std::string currentName;
+    int namePos; // 0..2
 
     // Métodos internos
     void Reset();
@@ -53,6 +60,8 @@ private:
     void DrawMenu();
     void DrawPlaying();
     void DrawGameOver();
+    void UpdateEnterName();
+    void DrawEnterName();
     // Highscore file IO
     void LoadHighScore();
     void SaveHighScore();

@@ -1,6 +1,9 @@
 #include "Game.h"
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
+#include <string>
+#include <cctype>
 
 Game::Game() {
     naveTex = LoadTexture("cohete.png");
@@ -13,6 +16,10 @@ Game::Game() {
     state = GameState::MENU;
     debugHitbox = false;
     highscore = 0;
+    highscoreName = "---";
+    pendingHighscore = 0;
+    currentName = "AAA";
+    namePos = 0;
     LoadHighScore();
     Reset();
 }
@@ -55,6 +62,7 @@ void Game::Update() {
     switch (state) {
         case GameState::MENU:     UpdateMenu();     break;
         case GameState::PLAYING:  UpdatePlaying();  break;
+        case GameState::ENTER_NAME: UpdateEnterName(); break;
         case GameState::GAMEOVER: UpdateGameOver(); break;
     }
 }
@@ -63,8 +71,59 @@ void Game::Draw() {
     switch (state) {
         case GameState::MENU:     DrawMenu();     break;
         case GameState::PLAYING:  DrawPlaying();  break;
+        case GameState::ENTER_NAME: DrawEnterName(); break;
         case GameState::GAMEOVER: DrawGameOver(); break;
     }
+}
+
+void Game::UpdateEnterName() {
+    // Change letter
+    if (IsKeyPressed(KEY_UP)) {
+        char &c = currentName[namePos];
+        if (c >= 'A' && c < 'Z') c++;
+        else c = 'A';
+    }
+    if (IsKeyPressed(KEY_DOWN)) {
+        char &c = currentName[namePos];
+        if (c > 'A' && c <= 'Z') c--;
+        else c = 'Z';
+    }
+
+    // Move position
+    if (IsKeyPressed(KEY_LEFT)) {
+        if (namePos > 0) namePos--;
+    }
+    if (IsKeyPressed(KEY_RIGHT)) {
+        if (namePos < 2) namePos++;
+    }
+
+    // Backspace resets current letter to A and moves left
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        currentName[namePos] = 'A';
+        if (namePos > 0) namePos--;
+    }
+
+    // Confirm
+    if (IsKeyPressed(KEY_ENTER)) {
+        // finalize
+        highscore = pendingHighscore;
+        highscoreName = currentName;
+        SaveHighScore();
+        pendingHighscore = 0;
+        state = GameState::GAMEOVER;
+    }
+}
+
+void Game::DrawEnterName() {
+    DrawText("NEW HIGHSCORE!", 200, 160, 30, GOLD);
+    DrawText(TextFormat("SCORE: %d", pendingHighscore), 260, 200, 20, WHITE);
+    DrawText("ENTER NAME (3 LETRAS):", 180, 240, 20, WHITE);
+    DrawText(currentName.c_str(), 320, 270, 40, WHITE);
+
+    int x = 320 + namePos * 24;
+    DrawLine(x, 310, x + 18, 310, WHITE);
+
+    DrawText("Arriba/Abajo: letra    Izquierda/Derecha: mover    ENTER: guardar", 80, 350, 18, GRAY);
 }
 
 void Game::UpdateMenu() {
@@ -111,8 +170,8 @@ void Game::UpdatePlaying() {
                 score += 100;
 
                 if (score > highscore) {
-                    highscore = score;
-                    SaveHighScore();
+                    // Nuevo highscore pendiente
+                    if (pendingHighscore < score) pendingHighscore = score;
                 }
 
                 if (score >= nextExtraLifeScore) {
@@ -140,8 +199,7 @@ void Game::UpdatePlaying() {
                 score += 300;
 
                 if (score > highscore) {
-                    highscore = score;
-                    SaveHighScore();
+                    if (pendingHighscore < score) pendingHighscore = score;
                 }
 
                 if ((*it)->vida <= 0)
@@ -170,6 +228,14 @@ void Game::UpdatePlaying() {
 }
 
 void Game::UpdateGameOver() {
+    // Si está pendiente un highscore, solicita el nombre (despues de la muerte)
+    if (pendingHighscore > highscore) {
+        currentName = "AAA";
+        namePos = 0;
+        state = GameState::ENTER_NAME;
+        return;
+    }
+
     if (IsKeyPressed(KEY_ENTER)) {
         Reset();
         state = GameState::PLAYING;
@@ -179,7 +245,7 @@ void Game::UpdateGameOver() {
 void Game::DrawMenu() {
     DrawText("FULL GUNS MINERY", 200, 200, 40, WHITE);
     DrawText("ENTER PARA JUGAR", 240, 260, 20, GRAY);
-    DrawText(TextFormat("HIGHSCORE: %d", highscore), 240, 300, 20, GRAY);
+    DrawText(TextFormat("HIGHSCORE: %s %d", highscoreName.c_str(), highscore), 240, 300, 20, GRAY);
 }
 
 void Game::DrawPlaying() {
@@ -228,24 +294,39 @@ void Game::DrawPlaying() {
 void Game::DrawGameOver() {
     DrawText("GAME OVER", 260, 220, 40, RED);
     DrawText("ENTER PARA REINICIAR", 230, 280, 20, GRAY);
-    DrawText(TextFormat("HIGHSCORE: %d", highscore), 260, 320, 20, WHITE);
+    DrawText(TextFormat("HIGHSCORE: %s %d", highscoreName.c_str(), highscore), 260, 320, 20, WHITE);
 }
 
 void Game::LoadHighScore() {
     FILE* f = fopen("highscore.dat", "r");
     if (f) {
-        if (fscanf(f, "%d", &highscore) != 1)
+        char namebuf[64] = "---";
+        int read = fscanf(f, "%d %63s", &highscore, namebuf);
+        if (read < 1) {
             highscore = 0;
+            highscoreName = "---";
+        } else if (read == 1) {
+            highscoreName = "---";
+        } else {
+            // Se asegura de que el nombre tenga como máximo 3 letras mayúsculas
+            for (int i = 0; namebuf[i]; ++i) namebuf[i] = toupper((unsigned char)namebuf[i]);
+            highscoreName = std::string(namebuf).substr(0, 3);
+        }
         fclose(f);
     } else {
         highscore = 0;
+        highscoreName = "---";
     }
 }
 
 void Game::SaveHighScore() {
     FILE* f = fopen("highscore.dat", "w");
     if (f) {
-        fprintf(f, "%d\n", highscore);
+        char namebuf[4] = "---";
+        // Se asegura de que el nombre tenga como máximo 3 letras mayúsculas
+        for (int i = 0; i < 3 && i < (int)highscoreName.size(); ++i)
+            namebuf[i] = toupper((unsigned char)highscoreName[i]);
+        fprintf(f, "%d %s\n", highscore, namebuf);
         fclose(f);
     }
 }
