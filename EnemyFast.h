@@ -10,5 +10,5 @@ public:
     float GetRadius() const override;
     void Reset() override;
 
-    int GetScoreValue() const override { return 150; }
+    int GetScoreValue() const override { return 100; }
 };

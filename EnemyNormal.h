@@ -1,16 +1,14 @@
 #pragma once
 #include "Enemy.h"
 
-class EnemyZigZag : public Enemy {
-    float angle;
-
+class EnemyNormal : public Enemy {
 public:
-    EnemyZigZag(Texture2D tex);
+    EnemyNormal(Texture2D tex);
 
     void Update() override;
     void Draw() override;
     float GetRadius() const override;
     void Reset() override;
 
-    int GetScoreValue() const override { return 75; }
+    int GetScoreValue() const override { return 50; }
 };

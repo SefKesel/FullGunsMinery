@@ -20,12 +20,16 @@ Game::Game() {
     pendingHighscore = 0;
     currentName = "AAA";
     namePos = 0;
+    backgroundTex = LoadTexture("fondo.png");
+    bgOffset = 0.0f;
+    bgSpeed = 80.0f; // pixels per second
     LoadHighScore();
     Reset();
 }
 
 Game::~Game() {
     UnloadTexture(naveTex);
+    if (backgroundTex.width > 0) UnloadTexture(backgroundTex);
 
     UnloadTexture(texAstNormal);
     UnloadTexture(texAstFast);
@@ -46,7 +50,7 @@ void Game::Reset() {
 
     // Normales
     for (int i = 0; i < 2; i++)
-        enemigos.push_back(std::make_unique<EnemyZigZag>(texAstNormal));
+        enemigos.push_back(std::make_unique<EnemyNormal>(texAstNormal));
 
     // Fast
     for (int i = 0; i < 2; i++)
@@ -59,6 +63,13 @@ void Game::Reset() {
 }
 
 void Game::Update() {
+    // Update background offset regardless of state (smooth scrolling)
+    if (backgroundTex.width > 0) {
+        float destScale = (float)GetScreenWidth() / (float)backgroundTex.width;
+        int destH = (int)(backgroundTex.height * destScale);
+        bgOffset += bgSpeed * GetFrameTime();
+        if (bgOffset >= destH) bgOffset -= destH;
+    }
     switch (state) {
         case GameState::MENU:     UpdateMenu();     break;
         case GameState::PLAYING:  UpdatePlaying();  break;
@@ -77,7 +88,7 @@ void Game::Draw() {
 }
 
 void Game::UpdateEnterName() {
-    // Change letter
+    // Cambia letra
     if (IsKeyPressed(KEY_UP)) {
         char &c = currentName[namePos];
         if (c >= 'A' && c < 'Z') c++;
@@ -89,7 +100,7 @@ void Game::UpdateEnterName() {
         else c = 'Z';
     }
 
-    // Move position
+    // Mueve posición
     if (IsKeyPressed(KEY_LEFT)) {
         if (namePos > 0) namePos--;
     }
@@ -97,15 +108,15 @@ void Game::UpdateEnterName() {
         if (namePos < 2) namePos++;
     }
 
-    // Backspace resets current letter to A and moves left
+    // Borrar letra (poner a 'A' y mover atrás)
     if (IsKeyPressed(KEY_BACKSPACE)) {
         currentName[namePos] = 'A';
         if (namePos > 0) namePos--;
     }
 
-    // Confirm
+    // Confirma nombre
     if (IsKeyPressed(KEY_ENTER)) {
-        // finalize
+        // Guardar nuevo highscore
         highscore = pendingHighscore;
         highscoreName = currentName;
         SaveHighScore();
@@ -167,7 +178,7 @@ void Game::UpdatePlaying() {
             if (b.CheckCollision(e.get())) {
                 b.activa = false;
                 e->Reset();
-                score += 100;
+                score += e->GetScoreValue();
 
                 if (score > highscore) {
                     // Nuevo highscore pendiente
@@ -183,7 +194,7 @@ void Game::UpdatePlaying() {
         }
     }
 
-    // Spawn de nave enemiga cada 3000 puntos
+    // Spawn de nave enemiga cada 2000 puntos
     if (score >= nextEnemyShipScore) {
         enemyShips.push_back(std::make_unique<EnemyShip>(enemyShipTex));
         nextEnemyShipScore += 2000;
@@ -196,7 +207,7 @@ void Game::UpdatePlaying() {
             if (b.CheckCollision(it->get())) {
                 b.activa = false;
                 (*it)->vida--;
-                score += 300;
+                score += 150;
 
                 if (score > highscore) {
                     if (pendingHighscore < score) pendingHighscore = score;

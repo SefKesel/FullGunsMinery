@@ -7,6 +7,7 @@
 #include "EnemyFast.h"
 #include "EnemyZigZag.h"
 #include "EnemyShip.h"
+#include "EnemyNormal.h"
 
 #include <memory>
 #include <vector>
@@ -31,6 +32,9 @@ private:
     Texture2D texAstZigZag;
 
     Texture2D enemyShipTex;
+    Texture2D backgroundTex;
+    float bgOffset;
+    float bgSpeed;
 
     // Entidades
     std::unique_ptr<Nave> nave;
@@ -60,6 +64,8 @@ private:
     void DrawMenu();
     void DrawPlaying();
     void DrawGameOver();
+    void DrawEnterName();
+    void DrawBackground();
     void UpdateEnterName();
     void DrawEnterName();
     // Highscore file IO
