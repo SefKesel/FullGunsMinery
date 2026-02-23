@@ -6,11 +6,16 @@ Bala::Bala() {
     velocidad = 6.0f;
     direccion = {0, -1};
     color = YELLOW;
+    baseRadius = 4.0f;
+    radius = baseRadius;
 }
 
-void Bala::Disparar(Vector2 pos, Vector2 dir, Color c) {
+void Bala::Disparar(Vector2 pos, Vector2 dir, Color c, float radiusMultiplier) {
     posicion = pos;
     color = c;
+
+    // Ajustar tamaño de bala según multiplicador
+    radius = baseRadius * radiusMultiplier;
 
     float len = sqrtf(dir.x * dir.x + dir.y * dir.y);
     if (len != 0) {
@@ -34,7 +39,7 @@ void Bala::Update() {
 
 void Bala::Draw() {
     if (activa)
-        DrawCircleV(posicion, 4, color);
+    DrawCircleV(posicion, radius, color);
 }
 
 Vector2 Bala::GetPosition() const {
@@ -42,5 +47,5 @@ Vector2 Bala::GetPosition() const {
 }
 
 float Bala::GetRadius() const {
-    return 4.0f;
+    return radius;
 }

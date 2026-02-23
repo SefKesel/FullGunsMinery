@@ -8,6 +8,7 @@
 #include "EnemyZigZag.h"
 #include "EnemyShip.h"
 #include "EnemyNormal.h"
+#include "PowerUp.h"
 
 #include <memory>
 #include <vector>
@@ -41,6 +42,8 @@ private:
     std::vector<std::unique_ptr<Enemy>> enemigos;
     std::vector<std::unique_ptr<EnemyShip>> enemyShips;
     bool debugHitbox;
+    std::vector<std::unique_ptr<PowerUp>> powerUps;
+    float pickupMsgTimer;
     
     // Score y progresión
     int score;

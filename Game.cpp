@@ -5,6 +5,7 @@
 #include <string>
 #include <cctype>
 #include <cmath>
+#include "PowerUp.h"
 
 Game::Game() {
     naveTex = LoadTexture("cohete.png");
@@ -23,7 +24,7 @@ Game::Game() {
     namePos = 0;
     backgroundTex = LoadTexture("fondo.png");
     bgOffset = 0.0f;
-    bgSpeed = 25.0f; // pixels per second (slower)
+    bgSpeed = 25.0f; // pixeles por segundo
     LoadHighScore();
     Reset();
 }
@@ -48,6 +49,8 @@ void Game::Reset() {
 
     enemigos.clear();
     enemyShips.clear();
+    powerUps.clear();
+    pickupMsgTimer = 0.0f;
 
     // Normales
     for (int i = 0; i < 2; i++)
@@ -77,6 +80,10 @@ void Game::Update() {
         case GameState::ENTER_NAME: UpdateEnterName(); break;
         case GameState::GAMEOVER: UpdateGameOver(); break;
     }
+
+    // Actualizar timers globales
+    float dt = GetFrameTime();
+    if (pickupMsgTimer > 0.0f) pickupMsgTimer -= dt;
 }
 
 void Game::Draw() {
@@ -155,6 +162,19 @@ void Game::UpdatePlaying() {
     for (auto& e : enemigos)
         e->Update();
 
+    // Actualizar power-ups
+    for (auto& p : powerUps)
+        p->Update();
+
+    // Debug: spawnear power-up con Ctrl (izq o der)
+    if (IsKeyPressed(KEY_LEFT_CONTROL) || IsKeyPressed(KEY_RIGHT_CONTROL)) {
+        Vector2 pos = { (float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f };
+        // caida lenta desde el centro
+        powerUps.push_back(std::make_unique<PowerUp>(PowerUpType::FIRE_RATE, pos, 5.0f, 20.0f, 60.0f));
+    }
+
+
+
     // Actualizar naves enemigas
     for (auto& ship : enemyShips) {
         ship->SetPlayerPosition(nave->posicion);
@@ -215,9 +235,14 @@ void Game::UpdatePlaying() {
                     if (pendingHighscore < score) pendingHighscore = score;
                 }
 
-                if ((*it)->vida <= 0)
+                if ((*it)->vida <= 0) {
+                    // Chance 25% de spawnear power-up al destruir una nave enemiga
+                    if (rand() % 100 < 25) {
+                        Vector2 pos = (*it)->GetPosition();
+                        powerUps.push_back(std::make_unique<PowerUp>(PowerUpType::FIRE_RATE, pos, 5.0f, 20.0f));
+                    }
                     it = enemyShips.erase(it);
-                else
+                } else
                     ++it;
                 break;
             } else {
@@ -236,6 +261,20 @@ void Game::UpdatePlaying() {
                 if (nave->vida <= 0)
                     state = GameState::GAMEOVER;
             }
+        }
+    }
+
+    // Colisión nave vs power-ups
+    for (auto it = powerUps.begin(); it != powerUps.end(); ) {
+        if ((*it)->activa && (*it)->CheckCollision(nave.get())) {
+            // Aplicar efecto
+            if ((*it)->type == PowerUpType::FIRE_RATE) {
+                nave->ApplyFireRatePowerUp((*it)->multiplier, (*it)->duration);
+                pickupMsgTimer = (*it)->duration; // mostrar mensaje por la duración del power-up
+            }
+            it = powerUps.erase(it);
+        } else {
+            ++it;
         }
     }
 }
@@ -271,6 +310,20 @@ void Game::DrawPlaying() {
 
     for (auto& ship : enemyShips)
         ship->Draw();
+
+    for (auto& p : powerUps)
+        p->Draw();
+
+    // Mensaje de recogida
+    if (pickupMsgTimer > 0.0f) {
+        int textSize = 20;
+        int padding = 10;
+        const char* msg = "+SHOTGUN";
+        int tw = MeasureText(msg, textSize);
+        int x = GetScreenWidth() - tw - padding;
+        int y = GetScreenHeight() - 30;
+        DrawText(msg, x, y, textSize, GOLD);
+    }
 
     DrawText(TextFormat("VIDA: %d", nave->vida), 10, 10, 20, WHITE);
     DrawText(TextFormat("SCORE: %d", score), 10, 35, 20, WHITE);
